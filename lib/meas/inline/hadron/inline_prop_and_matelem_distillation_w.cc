@@ -338,7 +338,183 @@ namespace Chroma
 
 	return keys;
       }
-	
+
+#ifndef PROP_BLAS_CREATION_TEMP    
+    template <typename T> inline T fabs2(RComplex<T> &x) { return x.real() * x.real() + x.imag() * x.imag(); }
+
+    typedef int LAPACK_BLASINT;
+
+    extern "C" void zgemm_(const char *transa, const char *transb,
+                           LAPACK_BLASINT *m, LAPACK_BLASINT *n,
+                           LAPACK_BLASINT *k, RComplex<double> *alpha,
+                           RComplex<double> *a, LAPACK_BLASINT *lda,
+                           RComplex<double> *b, LAPACK_BLASINT *ldb,
+                           RComplex<double> *beta, RComplex<double> *c,
+                           LAPACK_BLASINT *ldc);
+    extern "C" void cgemm_(const char *transa, const char *transb,
+                           LAPACK_BLASINT *m, LAPACK_BLASINT *n,
+                           LAPACK_BLASINT *k, RComplex<float> *alpha,
+                           RComplex<float> *a, LAPACK_BLASINT *lda,
+                           RComplex<float> *b, LAPACK_BLASINT *ldb,
+                           RComplex<float> *beta, RComplex<float> *c,
+                           LAPACK_BLASINT *ldc);
+    void XGEMM(const char *transa, const char *transb, LAPACK_BLASINT *m,
+               LAPACK_BLASINT *n, LAPACK_BLASINT *k, RComplex<double> *alpha,
+               RComplex<double> *a, LAPACK_BLASINT *lda, RComplex<double> *b,
+               LAPACK_BLASINT *ldb, RComplex<double> *beta, RComplex<double> *c,
+               LAPACK_BLASINT *ldc) {
+      zgemm_(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
+    }
+    void XGEMM(const char *transa, const char *transb, LAPACK_BLASINT *m,
+               LAPACK_BLASINT *n, LAPACK_BLASINT *k, RComplex<float> *alpha,
+               RComplex<float> *a, LAPACK_BLASINT *lda, RComplex<float> *b,
+               LAPACK_BLASINT *ldb, RComplex<float> *beta, RComplex<float> *c,
+               LAPACK_BLASINT *ldc) {
+      cgemm_(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
+   }
+
+   template <typename T>
+   int Lapack_gemm(const char *transa, const char *transb, int m, int n, int k,
+                   RComplex<T> alpha, RComplex<T> *a, int lda, RComplex<T> *b,
+                   int ldb, RComplex<T> beta, RComplex<T> *c, int ldc) {
+
+     LAPACK_BLASINT lm = m;
+     LAPACK_BLASINT ln = n;
+     LAPACK_BLASINT lk = k;
+     LAPACK_BLASINT llda = lda;
+     LAPACK_BLASINT lldb = ldb;
+     LAPACK_BLASINT lldc = ldc;
+
+     /* Zero dimension matrix may cause problems */
+     if (m == 0 || n == 0)
+       return 0;
+
+     XGEMM(transa, transb, &lm, &ln, &lk, &alpha, a, &llda, b, &lldb, &beta, c,
+           &lldc);
+
+     return 0;
+   }
+
+   // Using lexicographic order
+
+   int getVolume(const multi1d<int> &lattSize) {
+     int vol = 1;
+     for (int i = 0; i < lattSize.size(); i++)
+       vol *= lattSize[i];
+     return vol;
+    }
+
+    multi1d<int> getCoorFromIndex(const multi1d<int> &lattSize, int index) {
+        multi1d<int> coor(lattSize.size());
+        int postvol = getVolume(lattSize), prevol = postvol;
+
+        for (int i=0; i<lattSize.size(); i++) {
+            postvol /= lattSize(i);
+            coor(i) = index % prevol / postvol;
+            prevol = postvol;
+        }
+
+        return coor;
+    }
+
+    int getIndexFromCoor(const multi1d<int> &lattSize, multi1d<int> &coor) {
+        int postvol = getVolume(lattSize);
+        int index = 0;
+        for (int i=0; i<lattSize.size(); i++) {
+            postvol /= lattSize(i);
+            index += coor(i) * postvol;
+        }
+
+        return index;
+    }
+
+    template <typename T, int N>
+       void Lapack_multiInnerProduct(
+             const multi1d<OLattice<PScalar<PColorVector<RComplex<T>, N> > > > &vecsL,
+             const multi1d<OLattice<PScalar<PColorVector<RComplex<T>, N> > > > &vecsR,
+             multi2d<ComplexD> &op)
+       {
+          int localLatticeVol = Layout::sitesOnNode();
+          int mVecsc = localLatticeVol * N;
+          multi1d<int> opSize(2);           // dimensions of the output tensor 
+          opSize(0) = vecsL.size(); opSize(1) = vecsR.size();
+          int opVol = getVolume(opSize);    // volume of the output tensor
+          multi1d<RComplex<T>> opc(opVol);  // contiguous storage of the output tensor
+
+          // Maximum number of columns of the input matrices passed to LAPACK's gemm
+          const int bcache = 8;
+
+          StopWatch tensor_creation;
+          tensor_creation.reset(); tensor_creation.start();
+
+          multi1d<RComplex<T>> vecsRc(mVecsc * vecsR.size()); // contiguous copy of vecsR
+          for (int i=0; i<vecsR.size(); i++) {
+             // Copy vecsR contiguously into vecsRc
+             PScalar<PColorVector<RComplex<T>, N>> *vecsRic = vecsR(i).getF();
+             for (int m = 0; m < localLatticeVol; m++) {
+                for (int c = 0; c < N; c++) {
+                   vecsRc(m * N + c + mVecsc * i) = vecsRic[m].elem().elem(c);
+                }
+             }
+          }
+
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+          for (int li0 = 0; li0 < vecsL.size(); li0 += bcache) {
+             // Local arrays to each thread
+             int lb = std::min(bcache, vecsL.size() - li0);
+	     multi1d<RComplex<T>> vecsLc(mVecsc * lb); // contiguous copy of vecsL
+	     multi1d<RComplex<T>> LRc(lb * vecsR.size());   // output matrix in LAPACK's gemm
+             LRc = RComplex<T>(0.0, 0.0);                 // this zero initialization avoids the issue that uninitialized memory may got nan's or infs values
+
+             for (int lid=0; lid<lb; lid++) {
+                // Copy vecsL contiguously into vecsLc
+                PScalar<PColorVector<RComplex<T>, N>> *vecsLic = vecsL(li0 + lid).getF();
+                for (int m = 0; m < localLatticeVol; m++) {
+                   for (int c = 0; c < N; c++) {
+                      vecsLc(m * N + c + mVecsc * lid) = vecsLic[m].elem().elem(c);
+                   }
+                }
+             }
+
+             // Store the matrix-matrix product of vecsREc and vecsLC in LCREc
+             // NOTE: The first argument should be "T" and not "C"
+             Lapack_gemm("C", "N", vecsR.size(), lb, mVecsc, RComplex<T>(1.0, 0.0), &vecsRc[0], mVecsc,
+                     &vecsLc[0], mVecsc, RComplex<T>(0.0, 0.0), &LRc[0], vecsR.size());
+
+             // Copy LRc to opc
+             for (int lid=0; lid<lb; lid++) {
+                 for (int rid=0; rid<vecsR.size(); rid++) {
+                     opc((li0+lid)*vecsR.size()+rid) = LRc[rid + vecsR.size() * lid];
+                 }
+             }
+          }
+          tensor_creation.stop();
+
+          StopWatch tensor_sum;
+          tensor_sum.reset(); tensor_sum.start();
+
+          // Global reduction on opc
+          QDPInternal::globalSumArray(opc);
+
+          // Resize op
+          op.resize(vecsL.size(), vecsR.size());
+
+          // Copy opc into op
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+          for (int i=0; i<vecsL.size(); i++)
+                 for (int j=0; j<vecsR.size(); j++)
+                     op(i,j).elem().elem() = opc[i*vecsR.size() + j];
+          tensor_sum.stop();
+
+          QDPIO::cout << "baryon creation times: creation: " << tensor_creation.getTimeInSeconds() << " reduction: " << tensor_sum.getTimeInSeconds() << std::endl;
+       }
+#endif // BARYON_BLAS_CREATION    
+
+
     } // end anonymous
   } // end namespace
 
@@ -813,11 +989,20 @@ namespace Chroma
 		            if (key->t_slice != t_slice) {continue;}
 
 		            // Loop over the sink colorvec, form the innerproduct and the resulting perambulator
+	                    multi1d<LatticeColorVector> sub_eigen_vecs(num_vecs);
 		            for(int colorvec_sink=0; colorvec_sink < num_vecs; ++colorvec_sink)
 		              {
-		                peram[*key].mat(colorvec_sink,colorvec_src) = innerProduct(sub_eigen_map.getVec(t_slice, colorvec_sink), 
-		          								 ferm_out(key->spin_snk));
+		                // peram[*key].mat(colorvec_sink,colorvec_src) = innerProduct(sub_eigen_map.getVec(t_slice, colorvec_sink), 
+		          	// 							 ferm_out(key->spin_snk));
+                                sub_eigen_vecs(colorvec_sink) = sub_eigen_map.getVec(t_slice, colorvec_sink);
 		              } // for colorvec_sink
+
+	                    multi1d<LatticeColorVector> ferm_out_ith(1);
+                            ferm_out_ith(0) = ferm_out(key->spin_snk);
+                            multi2d<ComplexD> op;
+                            Lapack_multiInnerProduct(sub_eigen_vecs, ferm_out_ith, op);
+		            for(int colorvec_sink=0; colorvec_sink < num_vecs; ++colorvec_sink)
+                                peram[*key].mat(colorvec_sink,colorvec_src) = op(colorvec_sink, 0);
 		          } // for key
 		      } // for t_slice
 #else
