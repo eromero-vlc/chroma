@@ -336,7 +336,7 @@ createMGDeflation( const MGProtoMGDeflationParams& params, const multi1d<Lattice
 	eigs_params.RsdTarget = toDouble(params.EigenSolverRsdTarget);
 	eigs_params.VerboseP = params.EigenSolverVerboseP;
 
-	std::shared_ptr<MG::MGDeflation> mgdefl = std::make_shared<MG::MGDeflation>(info, M, level_params, solver_params, eigs_params);
+	std::shared_ptr<MG::MGDeflation> mgdefl = std::make_shared<MG::MGDeflation>(M, level_params, solver_params, eigs_params);
 	QDPIO::cout << "... Done " << std::endl;
 
 	swatch.stop();
@@ -462,7 +462,7 @@ createALIPrec( const MGProtoALIPrecParams& params, const multi1d<LatticeColorMat
 	recon_solver_params.RsdTarget= toDouble(params.Reconstruction.OuterSolverRsdTarget);
 	recon_solver_params.VerboseP = params.Reconstruction.OuterSolverVerboseP;
 
-	std::shared_ptr<MG::ALIPrec> aliprec = std::make_shared<MG::ALIPrec>(info, M, defl_level_params, deflation_solver_params, eigs_params, recon_level_params, v_params, recon_solver_params, params.Reconstruction.ali_distance, params.Reconstruction.probing_distance, MG::SUBSET_ODD);
+	std::shared_ptr<MG::ALIPrec> aliprec = std::make_shared<MG::ALIPrec>(M, defl_level_params, deflation_solver_params, eigs_params, recon_level_params, v_params, recon_solver_params, params.Reconstruction.ali_distance, params.Reconstruction.probing_distance, MG::SUBSET_ODD);
 	QDPIO::cout << "... Done " << std::endl;
 
 	swatch.stop();
