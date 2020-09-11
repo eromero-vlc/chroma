@@ -35,6 +35,8 @@
 #include "meas/inline/io/named_objmap.h"
 
 #include "chroma_config.h"
+#include <cstdlib>
+#include <stdexcept>
 
 #ifndef QDP_IS_QDPJIT_NO_NVPTX
 
@@ -131,6 +133,17 @@ namespace Chroma
 	  }
       }
 
+      input.random_colorvecs = false;
+      if( inputtop.count("random_colorvecs") == 1 ) {
+	read(inputtop, "random_colorvecs", input.random_colorvecs );
+	if (input.random_colorvecs)
+	  {
+	    QDPIO::cout << "random_colorvecs found, *** timing mode activated ***\n";
+	  }
+      }
+
+      if (input.zero_colorvecs && input.random_colorvecs) throw std::runtime_error("random_colorvecs and zero_colorvecs are exclusive, but they were both activated!");
+
       input.fuse_timeloop = false;
       if( inputtop.count("fuse_timeloop") == 1 ) {
 	read(inputtop, "fuse_timeloop", input.fuse_timeloop );
@@ -224,7 +237,7 @@ namespace Chroma
       {
       public:
 	//! Constructor
-	SubEigenMap(MODS_t& eigen_source_, int decay_dir, bool zero_colorvecs) : eigen_source(eigen_source_), time_slice_set(decay_dir), zero_colorvecs(zero_colorvecs) {}
+	SubEigenMap(MODS_t& eigen_source_, int decay_dir, bool random_colorvecs) : eigen_source(eigen_source_), time_slice_set(decay_dir), random_colorvecs(random_colorvecs) {}
 
 	//! Getter
 	const SubLatticeColorVectorF& getVec(int t_source, int colorvec_src) const;
@@ -242,7 +255,7 @@ namespace Chroma
       private:
 	//! Where we store the sublattice versions
 	mutable SUB_MOD_t sub_eigen;
-	bool zero_colorvecs;
+	bool random_colorvecs;
       };
 
       //----------------------------------------------------------------------------
@@ -256,14 +269,26 @@ namespace Chroma
 	{
 	  QDPIO::cout << __func__ << ": on t_source= " << t_source << "  colorvec_src= " << colorvec_src << std::endl;
 
-	  // No need to initialize with 'zero' - we are returning a subtype.
-	  LatticeColorVectorF vec_srce;
+	  LatticeColorVectorF vec_srce = zero;
 
-	  if (!zero_colorvecs)
+	  if (!random_colorvecs)
 	    {
 	      TimeSliceIO<LatticeColorVectorF> time_slice_io(vec_srce, t_source);
 	      eigen_source.get(src_key, time_slice_io);
 	    }
+          else
+            {
+	      LatticeComplexF vec;
+	      LatticeReal rnd1, theta;
+
+              for(int color_source(0);color_source<Nc;color_source++){
+	         random(rnd1); 
+	         Real twopiN = Chroma::twopi / 4; 
+                 theta = twopiN * floor(4*rnd1);
+	         vec = cmplx(cos(theta),sin(theta));
+                 pokeColor(vec_srce,vec,color_source);
+	      }
+            }
 	  
 	  SubLatticeColorVectorF tmp(getSet()[t_source], vec_srce);
 
@@ -514,7 +539,7 @@ namespace Chroma
 
       std::string eigen_meta_data;   // holds the eigenvalues
 
-      if (!params.param.contract.zero_colorvecs)
+      if (!params.param.contract.zero_colorvecs && !params.param.contract.random_colorvecs)
 	{
 	  try
 	    {
@@ -563,7 +588,7 @@ namespace Chroma
 
       // The sub-lattice eigenstd::vector std::map
       QDPIO::cout << "Initialize sub-lattice std::map" << std::endl;
-      SubEigenMap sub_eigen_map(eigen_source, decay_dir, params.param.contract.zero_colorvecs);
+      SubEigenMap sub_eigen_map(eigen_source, decay_dir, params.param.contract.random_colorvecs);
       QDPIO::cout << "Finished initializing sub-lattice std::map" << std::endl;
 
 
@@ -572,7 +597,7 @@ namespace Chroma
       //
       BinaryStoreDB< SerialDBKey<KeyPropElementalOperator_t>, SerialDBData<ValPropElementalOperator_t> > qdp_db;
 
-      if (!params.param.contract.zero_colorvecs)
+      if (!params.param.contract.zero_colorvecs && !params.param.contract.random_colorvecs)
 	{
 	  // Open the file, and write the meta-data and the binary for this operator
 	  if (! qdp_db.fileExists(params.named_obj.prop_op_file))
@@ -585,8 +610,7 @@ namespace Chroma
 	      proginfo(file_xml);    // Print out basic program info
 	      write(file_xml, "Params", params.param);
 	      write(file_xml, "Config_info", gauge_xml);
-	      if (!params.param.contract.zero_colorvecs)
-		write(file_xml, "Weights", readEigVals(eigen_meta_data));
+	      write(file_xml, "Weights", readEigVals(eigen_meta_data));
 	      pop(file_xml);
 
 	      std::string file_str(file_xml.str());
@@ -908,7 +932,7 @@ namespace Chroma
 			      << std::endl;
 	      } // colorvec_src0
 
-	      if (!params.param.contract.zero_colorvecs)
+	      if (!params.param.contract.zero_colorvecs && !params.param.contract.random_colorvecs)
 		{
 		  // Write out each time-slice chunk of a lattice colorvec soln to disk
 		  QDPIO::cout << "Write perambulator for spin_source= " << spin_source << "  to disk" << std::endl;

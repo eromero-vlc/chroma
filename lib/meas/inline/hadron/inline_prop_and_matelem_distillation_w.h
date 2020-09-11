@@ -44,6 +44,7 @@ namespace Chroma
 
 	  int           num_tries;      /*!< In case of bad things happening in the solution vectors, do retries */
 	  bool          zero_colorvecs;
+	  bool          random_colorvecs;
 	  bool          fuse_timeloop;  
           int           max_rhs;        /*! maximum number of linear systems solved simultaneously */
 	};
