@@ -46,12 +46,14 @@ public:
 
 	// VCycle Details (MGLevels - 1 of these)
 	// Presmoother
+	multi1d<int> VCyclePreSmootherNKrylov;
 	multi1d<int> VCyclePreSmootherMaxIters;
 	multi1d<Double> VCyclePreSmootherRsdTarget;
 	multi1d<bool> VCyclePreSmootherVerboseP;
 	multi1d<Real> VCyclePreSmootherRelaxOmega;
 
 	// Post Smoother
+	multi1d<int> VCyclePostSmootherNKrylov;
 	multi1d<int> VCyclePostSmootherMaxIters;
 	multi1d<Double> VCyclePostSmootherRsdTarget;
 	multi1d<bool> VCyclePostSmootherVerboseP;
@@ -96,6 +98,7 @@ public:
 
 	// Details of the eigensolver
 	int EigenSolverMaxRestartSize;
+	int EigenSolverBlockSize;
 	Double EigenSolverRsdTarget;
 	int EigenSolverMaxIters;
 	bool EigenSolverVerboseP;
@@ -139,6 +142,7 @@ public:
 
 		// Details of the eigensolver
 		int EigenSolverMaxRestartSize;
+	        int EigenSolverBlockSize;
 		Double EigenSolverRsdTarget;
 		int EigenSolverMaxIters;
 		bool EigenSolverVerboseP;
@@ -176,12 +180,14 @@ public:
 
 		// VCycle Details (MGLevels - 1 of these)
 		// Presmoother
+		multi1d<int> VCyclePreSmootherNKrylov;
 		multi1d<int> VCyclePreSmootherMaxIters;
 		multi1d<Double> VCyclePreSmootherRsdTarget;
 		multi1d<bool> VCyclePreSmootherVerboseP;
 		multi1d<Real> VCyclePreSmootherRelaxOmega;
 
 		// Post Smoother
+		multi1d<int> VCyclePostSmootherNKrylov;
 		multi1d<int> VCyclePostSmootherMaxIters;
 		multi1d<Double> VCyclePostSmootherRsdTarget;
 		multi1d<bool> VCyclePostSmootherVerboseP;

@@ -100,11 +100,13 @@ MGProtoSolverParams::MGProtoSolverParams(XMLReader& xml, const std::string& path
 	read( paramtop, "OuterSolverMaxIters", OuterSolverMaxIters);
 	read( paramtop, "OuterSolverVerboseP", OuterSolverVerboseP);
 
+	read( paramtop, "VCyclePreSmootherNKrylov", VCyclePreSmootherNKrylov, MGLevels-1);
 	read( paramtop, "VCyclePreSmootherMaxIters", VCyclePreSmootherMaxIters, MGLevels-1);
 	read( paramtop, "VCyclePreSmootherRsdTarget", VCyclePreSmootherRsdTarget, MGLevels-1);
 	read( paramtop, "VCyclePreSmootherRelaxOmega", VCyclePreSmootherRelaxOmega, MGLevels-1);
 	read( paramtop, "VCyclePreSmootherVerboseP", VCyclePreSmootherVerboseP, MGLevels-1);
 
+	read( paramtop, "VCyclePostSmootherNKrylov", VCyclePostSmootherNKrylov, MGLevels-1);
 	read( paramtop, "VCyclePostSmootherMaxIters", VCyclePostSmootherMaxIters, MGLevels-1);
 	read( paramtop, "VCyclePostSmootherRsdTarget", VCyclePostSmootherRsdTarget, MGLevels-1);
 	read( paramtop, "VCyclePostSmootherRelaxOmega", VCyclePostSmootherRelaxOmega, MGLevels-1);
@@ -158,11 +160,13 @@ void write(XMLWriter& xml, const std::string& path, const MGProtoSolverParams& p
 	write(xml, "OuterSolverMaxIters", p.OuterSolverMaxIters);
 	write(xml, "OuterSolverVerboseP", p.OuterSolverVerboseP);
 
+	write(xml, "VCyclePreSmootherNKrylov", p.VCyclePreSmootherNKrylov);
 	write(xml, "VCyclePreSmootherMaxIters", p.VCyclePreSmootherMaxIters);
 	write(xml, "VCyclePreSmootherRsdTarget", p.VCyclePreSmootherRsdTarget);
 	write(xml, "VCyclePreSmootherRelaxOmega", p.VCyclePreSmootherRelaxOmega);
 	write(xml, "VCyclePreSmootherVerboseP", p.VCyclePreSmootherVerboseP);
 
+	write(xml, "VCyclePostSmootherNKrylov", p.VCyclePostSmootherNKrylov);
 	write(xml, "VCyclePostSmootherMaxIters", p.VCyclePostSmootherMaxIters);
 	write(xml, "VCyclePostSmootherRsdTarget", p.VCyclePostSmootherRsdTarget);
 	write(xml, "VCyclePostSmootherRelaxOmega", p.VCyclePostSmootherRelaxOmega);
@@ -197,6 +201,7 @@ MGProtoMGDeflationParams::MGProtoMGDeflationParams(XMLReader& xml, const std::st
 	read( paramtop, "NullSolverRsdTarget", NullSolverRsdTarget, MGLevels-1);
 	read( paramtop, "NullSolverVerboseP", NullSolverVerboseP, MGLevels-1);
 
+	read( paramtop, "EigenSolverBlockSize", EigenSolverBlockSize);
 	read( paramtop, "EigenSolverMaxRestartSize", EigenSolverMaxRestartSize);
 	read( paramtop, "EigenSolverMaxRank", EigenSolverMaxRank);
 	read( paramtop, "EigenSolverRsdTarget", EigenSolverRsdTarget);
@@ -242,6 +247,7 @@ void write(XMLWriter& xml, const std::string& path, const MGProtoMGDeflationPara
 	write(xml, "NullSolverRsdTarget", p.NullSolverRsdTarget);
 	write(xml, "NullSolverVerboseP", p.NullSolverVerboseP);
 
+	write(xml, "EigenSolverBlockSize", p.EigenSolverBlockSize);
 	write(xml, "EigenSolverMaxRestartSize", p.EigenSolverMaxRestartSize);
 	write(xml, "EigenSolverMaxRank", p.EigenSolverMaxRank);
 	write(xml, "EigenSolverRsdTarget", p.EigenSolverRsdTarget);
@@ -275,6 +281,7 @@ MGProtoALIPrecParams::MGProtoALIPrecParams(XMLReader& xml, const std::string& pa
 	read( defl, "NullSolverRsdTarget", Deflation.NullSolverRsdTarget, Deflation.MGLevels-1);
 	read( defl, "NullSolverVerboseP", Deflation.NullSolverVerboseP, Deflation.MGLevels-1);
 
+	read( defl, "EigenSolverBlockSize", Deflation.EigenSolverBlockSize);
 	read( defl, "EigenSolverMaxRestartSize", Deflation.EigenSolverMaxRestartSize);
 	read( defl, "EigenSolverMaxRank", Deflation.EigenSolverMaxRank);
 	read( defl, "EigenSolverRsdTarget", Deflation.EigenSolverRsdTarget);
@@ -305,11 +312,13 @@ MGProtoALIPrecParams::MGProtoALIPrecParams(XMLReader& xml, const std::string& pa
 	read( recon, "OuterSolverMaxIters", Reconstruction.OuterSolverMaxIters);
 	read( recon, "OuterSolverVerboseP", Reconstruction.OuterSolverVerboseP);
 
+	read( recon, "VCyclePreSmootherNKrylov", Reconstruction.VCyclePreSmootherNKrylov, Reconstruction.MGLevels-1);
 	read( recon, "VCyclePreSmootherMaxIters", Reconstruction.VCyclePreSmootherMaxIters, Reconstruction.MGLevels-1);
 	read( recon, "VCyclePreSmootherRsdTarget", Reconstruction.VCyclePreSmootherRsdTarget, Reconstruction.MGLevels-1);
 	read( recon, "VCyclePreSmootherRelaxOmega", Reconstruction.VCyclePreSmootherRelaxOmega, Reconstruction.MGLevels-1);
 	read( recon, "VCyclePreSmootherVerboseP", Reconstruction.VCyclePreSmootherVerboseP, Reconstruction.MGLevels-1);
 
+	read( recon, "VCyclePostSmootherNKrylov", Reconstruction.VCyclePostSmootherNKrylov, Reconstruction.MGLevels-1);
 	read( recon, "VCyclePostSmootherMaxIters", Reconstruction.VCyclePostSmootherMaxIters, Reconstruction.MGLevels-1);
 	read( recon, "VCyclePostSmootherRsdTarget", Reconstruction.VCyclePostSmootherRsdTarget, Reconstruction.MGLevels-1);
 	read( recon, "VCyclePostSmootherRelaxOmega", Reconstruction.VCyclePostSmootherRelaxOmega, Reconstruction.MGLevels-1);
@@ -367,6 +376,7 @@ void write(XMLWriter& xml, const std::string& path, const MGProtoALIPrecParams& 
 	write( xml, "NullSolverRsdTarget", p.Deflation.NullSolverRsdTarget);
 	write( xml, "NullSolverVerboseP", p.Deflation.NullSolverVerboseP);
 
+	write( xml, "EigenSolverBlockSize", p.Deflation.EigenSolverBlockSize);
 	write( xml, "EigenSolverMaxRestartSize", p.Deflation.EigenSolverMaxRestartSize);
 	write( xml, "EigenSolverMaxRank", p.Deflation.EigenSolverMaxRank);
 	write( xml, "EigenSolverRsdTarget", p.Deflation.EigenSolverRsdTarget);
@@ -398,11 +408,13 @@ void write(XMLWriter& xml, const std::string& path, const MGProtoALIPrecParams& 
 	write( xml, "OuterSolverMaxIters", p.Reconstruction.OuterSolverMaxIters);
 	write( xml, "OuterSolverVerboseP", p.Reconstruction.OuterSolverVerboseP);
 
+	write( xml, "VCyclePreSmootherNKrylov", p.Reconstruction.VCyclePreSmootherNKrylov);
 	write( xml, "VCyclePreSmootherMaxIters", p.Reconstruction.VCyclePreSmootherMaxIters);
 	write( xml, "VCyclePreSmootherRsdTarget", p.Reconstruction.VCyclePreSmootherRsdTarget);
 	write( xml, "VCyclePreSmootherRelaxOmega", p.Reconstruction.VCyclePreSmootherRelaxOmega);
 	write( xml, "VCyclePreSmootherVerboseP", p.Reconstruction.VCyclePreSmootherVerboseP);
 
+	write( xml, "VCyclePostSmootherNKrylov", p.Reconstruction.VCyclePostSmootherNKrylov);
 	write( xml, "VCyclePostSmootherMaxIters", p.Reconstruction.VCyclePostSmootherMaxIters);
 	write( xml, "VCyclePostSmootherRsdTarget", p.Reconstruction.VCyclePostSmootherRsdTarget);
 	write( xml, "VCyclePostSmootherRelaxOmega", p.Reconstruction.VCyclePostSmootherRelaxOmega);

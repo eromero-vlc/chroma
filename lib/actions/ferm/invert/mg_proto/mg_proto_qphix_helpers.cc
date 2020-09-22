@@ -217,11 +217,13 @@ createMGPreconditionerT( const MGProtoSolverParams& params, const multi1d<Lattic
 	vector<MG::VCycleParams> v_params(n_levels-1);
 	for(int l=0; l < n_levels-1;++l) {
 		QDPIO::cout << "   Level " << l << std::endl;
+		v_params[l].pre_smoother_params.NKrylov=params.VCyclePreSmootherNKrylov[l];
 		v_params[l].pre_smoother_params.MaxIter=params.VCyclePreSmootherMaxIters[l];
 		v_params[l].pre_smoother_params.RsdTarget=toDouble(params.VCyclePreSmootherRsdTarget[l]);
 		v_params[l].pre_smoother_params.VerboseP =params.VCyclePreSmootherVerboseP[l];
 		v_params[l].pre_smoother_params.Omega =toDouble(params.VCyclePreSmootherRelaxOmega[l]);
 
+		v_params[l].post_smoother_params.NKrylov=params.VCyclePostSmootherNKrylov[l];
 		v_params[l].post_smoother_params.MaxIter=params.VCyclePostSmootherMaxIters[l];
 		v_params[l].post_smoother_params.RsdTarget=toDouble(params.VCyclePostSmootherRsdTarget[l]);
 		v_params[l].post_smoother_params.VerboseP =params.VCyclePostSmootherVerboseP[l];
@@ -331,6 +333,7 @@ createMGDeflation( const MGProtoMGDeflationParams& params, const multi1d<Lattice
 	solver_params.VerboseP = params.BottomSolverVerboseP;
 
 	MG::EigsParams eigs_params;
+	eigs_params.BlockSize = params.EigenSolverBlockSize;
 	eigs_params.MaxRestartSize = params.EigenSolverMaxRestartSize;
 	eigs_params.MaxNumEvals = params.EigenSolverMaxRank;
 	eigs_params.RsdTarget = toDouble(params.EigenSolverRsdTarget);
@@ -399,6 +402,7 @@ createALIPrec( const MGProtoALIPrecParams& params, const multi1d<LatticeColorMat
 	deflation_solver_params.VerboseP = params.Deflation.BottomSolverVerboseP;
 
 	MG::EigsParams eigs_params;
+	eigs_params.BlockSize = params.Deflation.EigenSolverBlockSize;
 	eigs_params.MaxRestartSize = params.Deflation.EigenSolverMaxRestartSize;
 	eigs_params.MaxNumEvals = params.Deflation.EigenSolverMaxRank;
 	eigs_params.RsdTarget = toDouble(params.Deflation.EigenSolverRsdTarget);
@@ -435,11 +439,13 @@ createALIPrec( const MGProtoALIPrecParams& params, const multi1d<LatticeColorMat
 	vector<MG::VCycleParams> v_params(recon_n_levels-1);
 	for(int l=0; l < recon_n_levels-1;++l) {
 		QDPIO::cout << "   Level " << l << std::endl;
+		v_params[l].pre_smoother_params.NKrylov=params.Reconstruction.VCyclePreSmootherNKrylov[l];
 		v_params[l].pre_smoother_params.MaxIter=params.Reconstruction.VCyclePreSmootherMaxIters[l];
 		v_params[l].pre_smoother_params.RsdTarget=toDouble(params.Reconstruction.VCyclePreSmootherRsdTarget[l]);
 		v_params[l].pre_smoother_params.VerboseP =params.Reconstruction.VCyclePreSmootherVerboseP[l];
 		v_params[l].pre_smoother_params.Omega =toDouble(params.Reconstruction.VCyclePreSmootherRelaxOmega[l]);
 
+		v_params[l].post_smoother_params.NKrylov=params.Reconstruction.VCyclePostSmootherNKrylov[l];
 		v_params[l].post_smoother_params.MaxIter=params.Reconstruction.VCyclePostSmootherMaxIters[l];
 		v_params[l].post_smoother_params.RsdTarget=toDouble(params.Reconstruction.VCyclePostSmootherRsdTarget[l]);
 		v_params[l].post_smoother_params.VerboseP =params.Reconstruction.VCyclePostSmootherVerboseP[l];
