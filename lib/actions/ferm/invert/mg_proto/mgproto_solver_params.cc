@@ -45,6 +45,16 @@ namespace  {
  }
 
  template<typename T>
+ void read(XMLReader& xml, const std::string& path, T& result, T default_value)
+ {
+	 if (xml.count(path) > 0) {
+	 	 read(xml, path, result);
+	 } else {
+		 result = default_value;
+	 }
+ }
+
+ template<typename T>
  void read(XMLReader& xml, const std::string& path, multi1d<T>& result, int N, T default_value)
  {
 	 multi1d<T> read_result;
@@ -100,13 +110,13 @@ MGProtoSolverParams::MGProtoSolverParams(XMLReader& xml, const std::string& path
 	read( paramtop, "OuterSolverMaxIters", OuterSolverMaxIters);
 	read( paramtop, "OuterSolverVerboseP", OuterSolverVerboseP);
 
-	read( paramtop, "VCyclePreSmootherNKrylov", VCyclePreSmootherNKrylov, MGLevels-1);
+	read( paramtop, "VCyclePreSmootherNKrylov", VCyclePreSmootherNKrylov, MGLevels-1, 0);
 	read( paramtop, "VCyclePreSmootherMaxIters", VCyclePreSmootherMaxIters, MGLevels-1);
 	read( paramtop, "VCyclePreSmootherRsdTarget", VCyclePreSmootherRsdTarget, MGLevels-1);
 	read( paramtop, "VCyclePreSmootherRelaxOmega", VCyclePreSmootherRelaxOmega, MGLevels-1);
 	read( paramtop, "VCyclePreSmootherVerboseP", VCyclePreSmootherVerboseP, MGLevels-1);
 
-	read( paramtop, "VCyclePostSmootherNKrylov", VCyclePostSmootherNKrylov, MGLevels-1);
+	read( paramtop, "VCyclePostSmootherNKrylov", VCyclePostSmootherNKrylov, MGLevels-1, 0);
 	read( paramtop, "VCyclePostSmootherMaxIters", VCyclePostSmootherMaxIters, MGLevels-1);
 	read( paramtop, "VCyclePostSmootherRsdTarget", VCyclePostSmootherRsdTarget, MGLevels-1);
 	read( paramtop, "VCyclePostSmootherRelaxOmega", VCyclePostSmootherRelaxOmega, MGLevels-1);
@@ -201,7 +211,7 @@ MGProtoMGDeflationParams::MGProtoMGDeflationParams(XMLReader& xml, const std::st
 	read( paramtop, "NullSolverRsdTarget", NullSolverRsdTarget, MGLevels-1);
 	read( paramtop, "NullSolverVerboseP", NullSolverVerboseP, MGLevels-1);
 
-	read( paramtop, "EigenSolverBlockSize", EigenSolverBlockSize);
+	read( paramtop, "EigenSolverBlockSize", EigenSolverBlockSize, 1);
 	read( paramtop, "EigenSolverMaxRestartSize", EigenSolverMaxRestartSize);
 	read( paramtop, "EigenSolverMaxRank", EigenSolverMaxRank);
 	read( paramtop, "EigenSolverRsdTarget", EigenSolverRsdTarget);
@@ -281,7 +291,7 @@ MGProtoALIPrecParams::MGProtoALIPrecParams(XMLReader& xml, const std::string& pa
 	read( defl, "NullSolverRsdTarget", Deflation.NullSolverRsdTarget, Deflation.MGLevels-1);
 	read( defl, "NullSolverVerboseP", Deflation.NullSolverVerboseP, Deflation.MGLevels-1);
 
-	read( defl, "EigenSolverBlockSize", Deflation.EigenSolverBlockSize);
+	read( defl, "EigenSolverBlockSize", Deflation.EigenSolverBlockSize, 1);
 	read( defl, "EigenSolverMaxRestartSize", Deflation.EigenSolverMaxRestartSize);
 	read( defl, "EigenSolverMaxRank", Deflation.EigenSolverMaxRank);
 	read( defl, "EigenSolverRsdTarget", Deflation.EigenSolverRsdTarget);
@@ -312,13 +322,13 @@ MGProtoALIPrecParams::MGProtoALIPrecParams(XMLReader& xml, const std::string& pa
 	read( recon, "OuterSolverMaxIters", Reconstruction.OuterSolverMaxIters);
 	read( recon, "OuterSolverVerboseP", Reconstruction.OuterSolverVerboseP);
 
-	read( recon, "VCyclePreSmootherNKrylov", Reconstruction.VCyclePreSmootherNKrylov, Reconstruction.MGLevels-1);
+	read( recon, "VCyclePreSmootherNKrylov", Reconstruction.VCyclePreSmootherNKrylov, Reconstruction.MGLevels-1, 0);
 	read( recon, "VCyclePreSmootherMaxIters", Reconstruction.VCyclePreSmootherMaxIters, Reconstruction.MGLevels-1);
 	read( recon, "VCyclePreSmootherRsdTarget", Reconstruction.VCyclePreSmootherRsdTarget, Reconstruction.MGLevels-1);
 	read( recon, "VCyclePreSmootherRelaxOmega", Reconstruction.VCyclePreSmootherRelaxOmega, Reconstruction.MGLevels-1);
 	read( recon, "VCyclePreSmootherVerboseP", Reconstruction.VCyclePreSmootherVerboseP, Reconstruction.MGLevels-1);
 
-	read( recon, "VCyclePostSmootherNKrylov", Reconstruction.VCyclePostSmootherNKrylov, Reconstruction.MGLevels-1);
+	read( recon, "VCyclePostSmootherNKrylov", Reconstruction.VCyclePostSmootherNKrylov, Reconstruction.MGLevels-1, 0);
 	read( recon, "VCyclePostSmootherMaxIters", Reconstruction.VCyclePostSmootherMaxIters, Reconstruction.MGLevels-1);
 	read( recon, "VCyclePostSmootherRsdTarget", Reconstruction.VCyclePostSmootherRsdTarget, Reconstruction.MGLevels-1);
 	read( recon, "VCyclePostSmootherRelaxOmega", Reconstruction.VCyclePostSmootherRelaxOmega, Reconstruction.MGLevels-1);
