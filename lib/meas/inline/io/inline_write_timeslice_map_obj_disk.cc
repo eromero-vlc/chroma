@@ -66,7 +66,7 @@ namespace Chroma
 	  pop(file_xml);
 
 	  // Create the entry
-	  QDP::MapObjectDisk<KeyTimeSliceColorVec_t,TimeSliceIO<LatticeColorVector> > output_obj;
+	  QDP::MapObjectDisk<KeyTimeSliceColorVec_t,TimeSliceIO<LatticeColorVectorF> > output_obj;
 
 	  output_obj.insertUserdata(file_xml.str());
 	  output_obj.open(params.named_obj.output_file, std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
@@ -93,8 +93,8 @@ namespace Chroma
 		  KeyTimeSliceColorVec_t time_key;
 		  time_key.t_slice = t;
 		  time_key.colorvec = keys[i];
-
-		  output_obj.insert(time_key, TimeSliceIO<LatticeColorVector>(tmpvec.eigenVector,t));
+                  LatticeColorVectorF eigenvector = tmpvec.eigenVector;
+		  output_obj.insert(time_key, TimeSliceIO<LatticeColorVectorF>(eigenvector,t));
 		}
 	    }
 	  }
