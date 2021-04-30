@@ -30,6 +30,7 @@
 
 #include "meas/inline/io/named_objmap.h"
 #include <set>
+#include <thread>
 
 #ifdef BUILD_SB
 
@@ -96,8 +97,6 @@ namespace Chroma
       read(inputtop, "cacheP", input.cacheP);
       read(inputtop, "num_vecs", input.num_vecs);
       read(inputtop, "t_source", input.t_source);
-      read(inputtop, "Nt_forward", input.Nt_forward);
-      read(inputtop, "Nt_backward", input.Nt_backward);
     }
 
     //! Propagator output
@@ -108,8 +107,6 @@ namespace Chroma
       write(xml, "cacheP", input.cacheP);
       write(xml, "num_vecs", input.num_vecs);
       write(xml, "t_source", input.t_source);
-      write(xml, "Nt_forward", input.Nt_forward);
-      write(xml, "Nt_backward", input.Nt_backward);
 
       pop(xml);
     }
@@ -144,6 +141,21 @@ namespace Chroma
     {
       XMLReader inputtop(xml, path);
 
+      input.alt_t_start = std::numeric_limits<int>::max();
+      if (inputtop.count("t_start") == 1) {
+        read(inputtop, "t_start", input.alt_t_start);
+      }
+
+      input.alt_Nt_forward = std::numeric_limits<int>::max();
+      if (inputtop.count("Nt_forward") == 1) {
+        read(inputtop, "Nt_forward", input.alt_Nt_forward);
+      }
+
+      input.alt_num_vecs = 0;
+      if (inputtop.count("num_vecs") == 1) {
+        read(inputtop, "num_vecs", input.alt_num_vecs);
+      }
+
       read(inputtop, "use_derivP", input.use_derivP);
       read(inputtop, "decay_dir", input.decay_dir);
       read(inputtop, "displacement_length", input.displacement_length);
@@ -174,13 +186,23 @@ namespace Chroma
       if( inputtop.count("use_multiple_writers") == 1 ) {
         read(inputtop, "use_multiple_writers", input.use_multiple_writers);
       }
-    }
+
+      input.phase.resize(Nd - 1);
+      for (int i = 0; i < Nd - 1; ++i)
+	input.phase[i] = 0;
+      if( inputtop.count("phase") == 1 ) {
+        read(inputtop, "phase", input.phase);
+      }
+     }
 
     //! Propagator output
     void write(XMLWriter& xml, const std::string& path, const Params::Param_t::Contract_t& input)
     {
       push(xml, path);
 
+      write(xml, "t_start", input.alt_t_start);
+      write(xml, "Nt_forward", input.alt_Nt_forward);
+      write(xml, "num_vecs", input.alt_num_vecs);
       write(xml, "use_derivP", input.use_derivP);
       write(xml, "decay_dir", input.decay_dir);
       write(xml, "displacement_length", input.displacement_length);
@@ -191,6 +213,7 @@ namespace Chroma
       write(xml, "max_tslices_in_contraction", input.max_moms_in_contraction);
       write(xml, "use_genprop4_format", input.use_genprop4_format);
       write(xml, "use_multiple_writers", input.use_multiple_writers);
+      write(xml, "phase", input.phase);
 
       pop(xml);
     }
@@ -201,10 +224,22 @@ namespace Chroma
     {
       XMLReader inputtop(xml, path);
 
-      read(inputtop, "DispGammaMomList", input.disp_gamma_mom_list);
-      read(inputtop, "Propagator", input.prop);
-      read(inputtop, "PropSources", input.prop_sources);
-      read(inputtop, "SinkSourcePairs", input.sink_source_pairs);
+      if (inputtop.count("DispGammaMomList") == 1)
+        read(inputtop, "DispGammaMomList", input.disp_gamma_mom_list);
+      if (inputtop.count("Propagator") == 1)
+        read(inputtop, "Propagator", input.prop);
+      if (inputtop.count("PropSources") == 1)
+        read(inputtop, "PropSources", input.prop_sources);
+      if (inputtop.count("SinkSourcePairs") == 1)
+        read(inputtop, "SinkSourcePairs", input.sink_source_pairs);
+
+      if (inputtop.count("Displacements") == 1)
+        read(inputtop, "Displacements", input.alt_displacements);
+      if (inputtop.count("Moms") == 1)
+        read(inputtop, "Moms", input.alt_moms);
+      if (inputtop.count("SinkSources") == 1)
+        read(inputtop, "SinkSources", input.alt_sink_sources);
+
       read(inputtop, "Contractions", input.contract);
 
       input.link_smearing  = readXMLGroup(inputtop, "LinkSmearing", "LinkSmearingType");
@@ -220,6 +255,10 @@ namespace Chroma
       write(xml, "PropSources", input.prop_sources);
       write(xml, "SinkSourcePairs", input.sink_source_pairs);
       write(xml, "Contractions", input.contract);
+
+      write(xml, "Displacements", input.alt_displacements);
+      write(xml, "Moms", input.alt_moms);
+      write(xml, "SinkSources", input.alt_sink_sources);
       xml << input.link_smearing.xml;
 
       pop(xml);
@@ -354,8 +393,6 @@ namespace Chroma
       read(bin, param.cacheP);
       read(bin, param.num_vecs);
       read(bin, param.t_source);
-      read(bin, param.Nt_forward);
-      read(bin, param.Nt_backward);
     }
 
     //! KeySolnProp write
@@ -364,8 +401,6 @@ namespace Chroma
       write(bin, param.cacheP);
       write(bin, param.num_vecs);
       write(bin, param.t_source);
-      write(bin, param.Nt_forward);
-      write(bin, param.Nt_backward);
     }
 
     //----------------------------------------------------------------------------
@@ -758,7 +793,7 @@ namespace Chroma
       //
       // Setup the gauge smearing
       //
-      QDPIO::cout << "Initalize link smearing" << std::endl;
+      QDPIO::cout << "Initialize link smearing" << std::endl;
       Handle< LinkSmearing > linkSmearing;
 
       try
@@ -790,42 +825,75 @@ namespace Chroma
       std::vector<int> gammas;
       std::vector<std::vector<int>> disps;
 
-      if (params.param.disp_gamma_mom_list.size() >= 0)
       {
-	std::set<SB::Coor<Nd - 1>> moms_set;
-	std::set<std::vector<int>> disps_set;
-	std::set<int> gammas_set;
+        std::set<SB::Coor<Nd - 1>> moms_set;
+        std::set<std::vector<int>> disps_set;
+        std::set<int> gammas_set;
 
-	for (const auto& ins : params.param.disp_gamma_mom_list)
-	{
-	  SB::Coor<Nd - 1> c;
-	  for (unsigned int i = 0; i < ins.mom.size() && i < Nd - 1; ++i)
-	    c[i] = ins.mom[i];
-	  moms_set.insert(c);
+        for (const auto &ins : params.param.disp_gamma_mom_list) {
+          SB::Coor<Nd - 1> c;
+          for (unsigned int i = 0; i < ins.mom.size() && i < Nd - 1; ++i)
+            c[i] = ins.mom[i];
+          moms_set.insert(c);
           disps_set.insert(normDisp(ins.displacement));
-	  gammas_set.insert(ins.gamma);
-	}
+          gammas_set.insert(ins.gamma);
+        }
 
-	int num_mom = moms_set.size();
-	int mom_size = Nd - 1;
-	QDPIO::cout << name << ": num_mom= " << num_mom << "  mom_size= " << mom_size << std::endl;
-	moms.resize(num_mom,mom_size);
-	int i = 0;
-	for (const auto& it : moms_set) {
-	  for (unsigned int j = 0; j < Nd - 1; ++j)
-	    moms[i][j] = it[j];
-	  i++;
-	}
+        if (params.param.disp_gamma_mom_list.size() == 0) {
+          for (int g = 0; g < Nd * Nd; g++)
+            gammas_set.insert(g);
+        }
 
-	disps.resize(disps_set.size());
-	std::copy(disps_set.begin(), disps_set.end(), disps.begin());
-	gammas.resize(gammas_set.size());
-	std::copy(gammas_set.begin(), gammas_set.end(), gammas.begin());
+        for (const auto &it : params.param.alt_displacements)
+          disps_set.insert(it);
+
+        for (const auto &it : params.param.alt_moms)
+        {
+          SB::Coor<Nd - 1> c;
+          for (unsigned int i = 0; i < it.size() && i < Nd - 1; ++i)
+            c[i] = it[i];
+          moms_set.insert(c);
+        }
+
+        if (moms_set.size() == 0 || disps_set.size() == 0 || gammas_set.size() == 0) {
+          QDPIO::cerr << name
+                      << ": warning - no moms nor displacement nor gammas; nothing to do"
+                      << std::endl;
+          QDP_abort(1);
+        }
+
+        int num_mom = moms_set.size();
+        int mom_size = Nd - 1;
+        QDPIO::cout << name << ": num_mom= " << num_mom
+                    << "  mom_size= " << mom_size << std::endl;
+        moms.resize(num_mom, mom_size);
+        int i = 0;
+        for (const auto &it : moms_set) {
+          for (unsigned int j = 0; j < Nd - 1; ++j)
+            moms[i][j] = it[j];
+          i++;
+        }
+
+        disps.resize(disps_set.size());
+        std::copy(disps_set.begin(), disps_set.end(), disps.begin());
+        gammas.resize(gammas_set.size());
+        std::copy(gammas_set.begin(), gammas_set.end(), gammas.begin());
       }
-      else
+
+      //
+      // Parse the phase
+      //
+      if (params.param.contract.phase.size() != Nd - 1)
       {
-	QDPIO::cerr << name << ": warning - you have an empty disp_gamma_mom_list" << std::endl;
+	QDPIO::cerr << "phase tag should have " << Nd - 1 << " components" << std::endl;
 	QDP_abort(1);
+      }
+      SB::Coor<Nd - 1> phase;
+      for (int i = 0; i < Nd - 1; ++i)
+      {
+	phase[i] = params.param.contract.phase[i];
+	if (std::fabs(phase[i] - params.param.contract.phase[i]) > 0)
+	  std::runtime_error("phase should be integer");
       }
 
       //
@@ -833,17 +901,31 @@ namespace Chroma
       //
       SftMom phases(moms, params.param.contract.decay_dir);
 
-   
       //
       // Capture maximum number of vecs
       //
-      int num_vecs = 0;
-      for (const auto &it : params.param.prop_sources)
+      int num_vecs = params.param.contract.alt_num_vecs;
+      for (const auto& it : params.param.prop_sources)
 	num_vecs = std::max(num_vecs, it.num_vecs);
 
       //
       // Stores the range of time-slices used for each sink/source
       //
+
+      for (const auto& it : params.param.alt_sink_sources)
+      {
+	for (const auto& snk : it.second)
+	{
+	  Params::Param_t::SinkSource_t ss;
+	  ss.t_sink = snk;
+	  ss.t_source = it.first;
+	  int tdisp = it.first - params.param.contract.alt_t_start;
+	  ss.Nt_backward = -tdisp;
+	  ss.Nt_forward = tdisp + params.param.contract.alt_Nt_forward;
+	  params.param.sink_source_pairs.push_back(ss);
+	}
+      }
+
       struct FromSize {
 	int from;
 	int size;
@@ -1041,6 +1123,8 @@ namespace Chroma
 	QDPIO::cout << "Distillation file(s) opened" << std::endl;
       };
 
+      std::thread store_db_th; // background thread writing elementals
+
       //
       // Try the factories
       //
@@ -1121,7 +1205,7 @@ namespace Chroma
 
 	    // Get num_vecs colorvecs on time-slice t_source
 	    SB::Tensor<Nd + 3, SB::ComplexF> source_colorvec =
-	      SB::getColorvecs(eigen_source, decay_dir, t_source, 1, num_vecs);
+	      SB::getColorvecs(eigen_source, decay_dir, t_source, 1, num_vecs, SB::none, phase);
 
 	    // Invert the source for all spins and retrieve num_tslices_active
 	    // time-slices starting from time-slice first_tslice_active
@@ -1141,7 +1225,7 @@ namespace Chroma
 
 	    // Get num_vecs colorvecs on time-slice t_sink
 	    SB::Tensor<Nd + 3, SB::ComplexF> sink_colorvec =
-	      SB::getColorvecs(eigen_source, decay_dir, t_sink, 1, num_vecs);
+	      SB::getColorvecs(eigen_source, decay_dir, t_sink, 1, num_vecs, SB::none, phase);
 
 	    // Invert the sink for all spins and retrieve num_tslices_active time-slices starting from
 	    // time-slice first_tslice_active
@@ -1205,7 +1289,7 @@ namespace Chroma
 		"qgmNndst", {}, SB::OnHost, use_multiple_writers ? SB::OnEveryone : SB::OnMaster);
 	      g5_con.contract(SB::Gamma<SB::Complex>(g5, SB::OnDefaultDevice), {}, SB::NotConjugate,
 			      std::move(r.first), {{'q', 'j'}}, SB::NotConjugate, {{'q', 'i'}});
-	      const std::vector<int>& disps_perm = r.second;
+	      const std::vector<int> disps_perm = r.second;
 
 	      snarss1.stop();
 	      QDPIO::cout << "Time to compute contractions for " << tsize
@@ -1213,100 +1297,113 @@ namespace Chroma
 			  << msize << " momenta from momentum " << mfrom << " : "
 			  << snarss1.getTimeInSeconds() << " secs" << std::endl;
 
-	      snarss1.reset();
-	      snarss1.start();
+	      //
+	      // Write the elementals
+	      //
+
+	      // Wait until the previous tensor has finished
+	      if (store_db_th.joinable())
+		store_db_th.join();
 
 	      // Open DB if they are not opened already
 	      open_db(g5_con.p->procRank(), g5_con.p->numProcs());
 
-	      if (!params.param.contract.use_genprop4_format)
-	      {
-		// Store
-		LocalSerialDBKey<KeyUnsmearedMesonElementalOperator_t> key;
-		LocalSerialDBData<ValUnsmearedMesonElementalOperator_t> val;
-		val.data() = ValUnsmearedMesonElementalOperator_t(num_vecs);
+	      // Create a thread to store the tensor while doing other things
+	      store_db_th = std::thread([=, &qdp_db, &qdp4_db, &gammas, &disps, &phases]() {
+		StopWatch snarss1;
+		snarss1.reset();
+		snarss1.start();
 
-		for (int t = 0; t < tsize; ++t)
+		if (!params.param.contract.use_genprop4_format)
 		{
-		  for (int g = 0; g < gammas.size(); ++g)
+		  // Store
+		  LocalSerialDBKey<KeyUnsmearedMesonElementalOperator_t> key;
+		  LocalSerialDBData<ValUnsmearedMesonElementalOperator_t> val;
+		  val.data() = ValUnsmearedMesonElementalOperator_t(num_vecs);
+
+		  for (int t = 0; t < tsize; ++t)
 		  {
-		    for (int mom = 0; mom < msize; ++mom)
+		    for (int g = 0; g < gammas.size(); ++g)
 		    {
-		      for (int d = 0; d < disps_perm.size(); ++d)
+		      for (int mom = 0; mom < msize; ++mom)
 		      {
-			for (int n = 0; n < num_vecs; ++n)
+			for (int d = 0; d < disps_perm.size(); ++d)
 			{
-			  auto g5_con_t = g5_con
-					    .kvslice_from_size(
-					      {{'g', g}, {'m', mom}, {'n', n}, {'d', d}, {'t', t}},
-					      {{'g', 1}, {'m', 1}, {'n', 1}, {'d', 1}, {'t', 1}})
-					    .getLocal();
-			  if (g5_con_t)
+			  for (int n = 0; n < num_vecs; ++n)
 			  {
-			    g5_con_t.copyTo(val.data());
+			    auto g5_con_t =
+			      g5_con
+				.kvslice_from_size(
+				  {{'g', g}, {'m', mom}, {'n', n}, {'d', d}, {'t', t}},
+				  {{'g', 1}, {'m', 1}, {'n', 1}, {'d', 1}, {'t', 1}})
+				.getLocal();
+			    if (g5_con_t)
+			    {
+			      g5_con_t.copyTo(val.data());
 
-			    key.key().derivP = params.param.contract.use_derivP;
-			    key.key().t_sink = t_sink;
-			    key.key().t_slice = (t + tfrom + first_tslice_active) % Lt;
-			    key.key().t_source = t_source;
-			    key.key().colorvec_src = n;
-			    key.key().gamma = gammas[g];
-			    key.key().displacement = disps[disps_perm[d]];
-			    key.key().mom = phases.numToMom(mfrom + mom);
-			    key.key().mass = params.param.contract.mass_label;
+			      key.key().derivP = params.param.contract.use_derivP;
+			      key.key().t_sink = t_sink;
+			      key.key().t_slice = (t + tfrom + first_tslice_active) % Lt;
+			      key.key().t_source = t_source;
+			      key.key().colorvec_src = n;
+			      key.key().gamma = gammas[g];
+			      key.key().displacement = disps[disps_perm[d]];
+			      key.key().mom = phases.numToMom(mfrom + mom);
+			      key.key().mass = params.param.contract.mass_label;
 
-			    qdp_db.insert(key, val);
+			      qdp_db.insert(key, val);
+			    }
 			  }
 			}
 		      }
 		    }
 		  }
 		}
-	      }
-	      else
-	      {
-		// Store
-		LocalSerialDBKey<KeyGenProp4ElementalOperator_t> key;
-		LocalSerialDBData<ValGenProp4ElementalOperator_t> val;
-		val.data() = ValGenProp4ElementalOperator_t(num_vecs, num_vecs);
-
-		for (int t = 0; t < tsize; ++t)
+		else
 		{
-		  for (int g = 0; g < gammas.size(); ++g)
+		  // Store
+		  LocalSerialDBKey<KeyGenProp4ElementalOperator_t> key;
+		  LocalSerialDBData<ValGenProp4ElementalOperator_t> val;
+		  val.data() = ValGenProp4ElementalOperator_t(num_vecs, num_vecs);
+
+		  for (int t = 0; t < tsize; ++t)
 		  {
-		    for (int mom = 0; mom < msize; ++mom)
+		    for (int g = 0; g < gammas.size(); ++g)
 		    {
-		      for (int d = 0; d < disps_perm.size(); ++d)
+		      for (int mom = 0; mom < msize; ++mom)
 		      {
-			auto g5_con_t =
-			  g5_con
-			    .kvslice_from_size({{'g', g}, {'m', mom}, {'d', d}, {'t', t}},
-					       {{'g', 1}, {'m', 1}, {'d', 1}, {'t', 1}})
-			    .getLocal();
-
-			if (g5_con_t)
+			for (int d = 0; d < disps_perm.size(); ++d)
 			{
-			  g5_con_t.copyTo(val.data());
+			  auto g5_con_t =
+			    g5_con
+			      .kvslice_from_size({{'g', g}, {'m', mom}, {'d', d}, {'t', t}},
+						 {{'g', 1}, {'m', 1}, {'d', 1}, {'t', 1}})
+			      .getLocal();
 
-			  key.key().t_sink = t_sink;
-			  key.key().t_slice = (t + tfrom + first_tslice_active) % Lt;
-			  key.key().t_source = t_source;
-			  key.key().g = gammas[g];
-			  key.key().displacement = disps[disps_perm[d]];
-			  key.key().mom = phases.numToMom(mfrom + mom);
-			  key.key().mass = params.param.contract.mass_label;
+			  if (g5_con_t)
+			  {
+			    g5_con_t.copyTo(val.data());
 
-			  qdp4_db.insert(key, val);
+			    key.key().t_sink = t_sink;
+			    key.key().t_slice = (t + tfrom + first_tslice_active) % Lt;
+			    key.key().t_source = t_source;
+			    key.key().g = gammas[g];
+			    key.key().displacement = disps[disps_perm[d]];
+			    key.key().mom = phases.numToMom(mfrom + mom);
+			    key.key().mass = params.param.contract.mass_label;
+
+			    qdp4_db.insert(key, val);
+			  }
 			}
 		      }
 		    }
 		  }
 		}
-	      }
 
-	      snarss1.stop();
-	      QDPIO::cout << "Time to store " << tsize
-			  << " tslices : " << snarss1.getTimeInSeconds() << " secs" << std::endl;
+		snarss1.stop();
+		QDPIO::cout << "Time to store " << tsize
+			    << " tslices : " << snarss1.getTimeInSeconds() << " secs" << std::endl;
+	      });
 	    }
 	  }
 	  swatch.stop();
@@ -1321,6 +1418,10 @@ namespace Chroma
 	QDPIO::cout << name << ": caught exception around qprop: " << e << std::endl;
 	QDP_abort(1);
       }
+
+      // Wait until all pending tasks are finished before closing qdp_db and qdp4_db
+      if (store_db_th.joinable())
+	store_db_th.join();
 
       // Close db
       if (db_is_open)
